@@ -80,8 +80,8 @@ def set_interactive_policy(*, locals=None, banner=None, serve=None,
         prompt_control=prompt_control)
     asyncio.set_event_loop_policy(policy)
 
-def run_console(*, locals=None, banner=None, serve=None, prompt_control=None):
 
+def run_console(*, locals=None, banner=None, serve=None, prompt_control=None):
     """Run the interactive event loop."""
     loop = InteractiveEventLoop(
         locals=locals,
