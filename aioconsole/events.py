@@ -2,7 +2,6 @@
 
 import asyncio
 import functools
-import traceback
 
 from . import code
 from . import compat
