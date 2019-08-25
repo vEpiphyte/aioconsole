@@ -1,5 +1,6 @@
 """Provide an asynchronous equivalent to the python console."""
 
+import os
 import sys
 import code
 import pydoc
@@ -51,6 +52,7 @@ class AsynchronousConsole(code.InteractiveConsole):
         self.reader = None
         self.writer = None
         self.prompt_control = prompt_control
+        self.pythonstartup = False
         self.compile = AsynchronousCompiler()
         # Populate locals
         self.locals.setdefault('asyncio', asyncio)
@@ -111,6 +113,26 @@ class AsynchronousConsole(code.InteractiveConsole):
             self.showtraceback()
         yield from self.flush()
 
+    @asyncio.coroutine
+    def exec_pythonstartup(self):
+        filename = os.environ.get('PYTHONSTARTUP')
+        if filename:
+            if os.path.isfile(filename):
+                with open(filename) as fobj:
+                    startupcode = fobj.read()
+                try:
+                    self.locals['__file__'] = filename
+                    yield from self.runsource(startupcode, filename)
+                except Exception as e:  # pragma: no cover
+                    tb = traceback.format_exc()
+                    self.print(tb)
+                finally:
+                    self.locals.pop('__file__', None)
+
+            else:
+                self.print('Could not open PYTHONSTARTUP - No such file: {}'.format(filename))
+        yield from self.flush()
+
     def resetbuffer(self):
         self.buffer = []
 
@@ -143,6 +165,8 @@ class AsynchronousConsole(code.InteractiveConsole):
                 self.reader, self.writer = yield from self.streams
         finally:
             self.streams = None
+        if self.pythonstartup:
+            yield from self.exec_pythonstartup()
         # Interact
         try:
             if handle_sigint:

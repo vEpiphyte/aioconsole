@@ -1,6 +1,5 @@
 """Provide an interactive event loop class."""
 
-import os
 import asyncio
 import functools
 import traceback
@@ -16,10 +15,11 @@ class InteractiveEventLoop(asyncio.SelectorEventLoop):
     console_class = code.AsynchronousConsole
 
     def __init__(self, *, selector=None, locals=None, banner=None, serve=None,
-                 prompt_control=None):
+                 prompt_control=None, pythonstartup=False):
         self.console = None
         self.console_task = None
         self.console_server = None
+        self.pythonstartup = pythonstartup
         super().__init__(selector=selector)
         # Factory
         self.factory = lambda streams: self.console_class(
@@ -27,6 +27,7 @@ class InteractiveEventLoop(asyncio.SelectorEventLoop):
         # Local console
         if serve is None:
             self.console = self.factory(None)
+            self.console.pythonstartup = self.pythonstartup
             coro = self.console.interact(
                 banner, stop=True, handle_sigint=True)
             self.console_task = asyncio.ensure_future(coro, loop=self)
@@ -80,32 +81,16 @@ def set_interactive_policy(*, locals=None, banner=None, serve=None,
         prompt_control=prompt_control)
     asyncio.set_event_loop_policy(policy)
 
-def exec_pythonstartup(locals):
-    filename = os.environ.get('PYTHONSTARTUP')
-    if filename:
-        if os.path.isfile(filename):
-            with open(filename) as fobj:
-                startup_file = fobj.read()
-            try:
-                exec(startup_file, globals(), locals)
-            except Exception as e:  # pragma: no cover
-                tb = traceback.format_exc()
-                print(tb)
-
-        else:
-            print('Could not open PYTHONSTARTUP - No such file: {}'.format(filename))
-
 def run_console(*, locals=None, banner=None, serve=None, prompt_control=None):
-    if locals is None:
-        locals = {}
-    exec_pythonstartup(locals)
 
     """Run the interactive event loop."""
     loop = InteractiveEventLoop(
         locals=locals,
         banner=banner,
         serve=serve,
-        prompt_control=prompt_control)
+        prompt_control=prompt_control,
+        pythonstartup=True,
+    )
     asyncio.set_event_loop(loop)
     try:
         loop.run_forever()
